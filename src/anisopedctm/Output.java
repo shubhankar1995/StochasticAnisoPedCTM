@@ -18,6 +18,9 @@ import org.apache.commons.math3.optim.PointValuePair;
  *
  * @author Flurin Haenseler, Gael Lederrey
  *
+ * @version StochasticAnisoPedCTM v1.0
+ * @author Shubhankar Mathur
+ *
  */
 
 public class Output {

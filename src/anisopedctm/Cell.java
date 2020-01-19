@@ -9,13 +9,16 @@ import java.util.Hashtable;
  * Cell class
  *
  * @author Flurin Haenseler, Gael Lederrey
+ * 
+ * @version StochasticAnisoPedCTM v1.0
+ * @author Shubhankar Mathur
  *
  */
 
 public class Cell{
 
 	public final String zone; // zone
-	public final double areaSize; // surface size
+	public double areaSize; // surface size
 
 	public final float[] coordinates; // coordinates for drawing
 

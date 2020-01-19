@@ -10,12 +10,15 @@ import java.util.Set;
  *
  * @author Flurin Haenseler, Gael Lederrey
  *
+ * @version StochasticAnisoPedCTM v1.0
+ * @author Shubhankar Mathur
+ *
  */
 
 public class PotentialField {
 	//compute node potentials for all routes, and pre-compute route choice model
 	public void computeAllNodePotentials(Hashtable<Integer, Link> linkList, Hashtable<Integer, Node> nodeList,
-			Hashtable<String, Route> routeList, HashSet<Integer> sourceSinkNodes, Parameter param) {
+			Hashtable<String, Route> routeList, HashSet<Integer> sourceSinkNodes, Parameter param, Hashtable<String, Blockage> blockageList, int timeStep) {
 
 		//compute route-specific node potentials for each route
 		Enumeration<String> routeNames = routeList.keys();
@@ -25,7 +28,7 @@ public class PotentialField {
 			curRouteName = routeNames.nextElement(); //retrieve current route name
 
 			//compute node potentials for all nodes for given route
-			computeNodePotentialsForRoute(curRouteName, linkList, nodeList, routeList, sourceSinkNodes);
+			computeNodePotentialsForRoute(curRouteName, linkList, nodeList, routeList, sourceSinkNodes, blockageList, timeStep);
 		}
 
 		//pre-compute route-specific denominators for route choice model
@@ -39,7 +42,8 @@ public class PotentialField {
 	//node potential = minimum distance from destination in non-dimensional time
 	//potential at destination node = 0
 	public void computeNodePotentialsForRoute(String routeName, Hashtable<Integer, Link> linkList,
-			Hashtable<Integer, Node> nodeList, Hashtable<String, Route> routeList, HashSet<Integer> sourceSinkNodes) {
+			Hashtable<Integer, Node> nodeList, Hashtable<String, Route> routeList, HashSet<Integer> sourceSinkNodes,
+			Hashtable<String, Blockage> blockageList, int timeStep) {
 
 		//current route
 		Route curRoute = routeList.get(routeName);
@@ -52,13 +56,16 @@ public class PotentialField {
 
 		for (int curNodeID : routeNodeIDs) {
 			//initialize all nodes with infinite potential
-			nodeList.get(curNodeID).setPotential(routeName, Double.MAX_VALUE);
+			Node node = nodeList.get(curNodeID); 
+			node.setPotential(routeName, Double.MAX_VALUE);
 		}
 
 		//initialize destination node
 		int destNodeID = curRoute.getDestNodeID();
 		nodeList.get(destNodeID).setPotential(routeName, 0.0);
-
+		
+		//blockagePercent of node
+		Double blockagePercent = 0.0;
 		while ( !unvisitedNodeIDs.isEmpty() ){
 
 			//next node: unvisited node with lowest potential (destination in first iteration)
@@ -66,12 +73,20 @@ public class PotentialField {
 			double nextNodePot = Double.MAX_VALUE;
 
 			double candNodePot; //potential of candidate node
-
+			Node candNode;
 			//determine next node by iterating over set of unvisited nodes
 			//next node is node with lowest potential (destination node in first case)
 			for (int candNodeID : unvisitedNodeIDs) {
-				candNodePot = nodeList.get(candNodeID).getPotential(routeName);
-
+				candNode = nodeList.get(candNodeID);
+				candNodePot = candNode.getPotential(routeName);
+				blockagePercent = getNodeBlockagePercent(candNode, linkList, blockageList, timeStep);
+                                
+                                if (blockagePercent == 0.0 ){
+                                    blockagePercent = 1.0;
+                                }
+                                
+				candNodePot = candNodePot;// * (100 + blockagePercent)/100;
+				
 				//System.out.println("candNodeID: " + candNodeID);
 				//System.out.println("candNodePot: " + candNodePot);
 
@@ -98,23 +113,35 @@ public class PotentialField {
 			double linkTravelTime; //relative travel time on link connecting next node and neighbor
 			double neighborCurPot; //current potential of neighbor
 			double neighborCandPot; //alternative new potential of neighbor
-
+			Node neighbourNode;
+			
 			//iterate through neighbors of nextNode
 			for (int outLinkID : nodeList.get(nextNodeID).getOutLinks()) {
 				//destination node of outLink
 				neighborNodeID = linkList.get(outLinkID).getDestNode();
-
+				
+				
 				//check if neighbor is in set of feasible, unvisited nodes
 				if (unvisitedNodeIDs.contains(neighborNodeID)) {
 					//get current potential of neighbor
 					neighborCurPot = nodeList.get(neighborNodeID).getPotential(routeName);
-
+					
+					neighbourNode = nodeList.get(neighborNodeID);
+					blockagePercent = getNodeBlockagePercent(neighbourNode, linkList, blockageList, timeStep);
+					
 					//get link travel time and compute candidate potential
 					linkTravelTime = linkList.get(outLinkID).getRelTravTime();
 					neighborCandPot = nextNodePot + linkTravelTime;
-
+                                        
+                                        if (blockagePercent == 0.0 ){
+                                            blockagePercent = 1.0;
+                                        }
+                                        
+					neighborCandPot = neighborCandPot;// * blockagePercent; //(100 + blockagePercent)/100 ;
+					
 					//if alternative potential is lower than current potential, update
 					if (neighborCandPot < neighborCurPot) {
+                                            
 						nodeList.get(neighborNodeID).setPotential(routeName, neighborCandPot);
 					}
 				}
@@ -130,5 +157,21 @@ public class PotentialField {
 				}
 			}
 		}
+	}
+	
+	public Double getNodeBlockagePercent (Node node, Hashtable<Integer, Link> linkList, Hashtable<String, Blockage> blockageList, int timeStep) {
+		Double blockagePercent = 0.0;
+		
+		int outLinkId = node.getOutLinks().stream().findFirst().get();
+		String cellName = linkList.get(outLinkId).cellName;
+		
+		if(null != blockageList.get(cellName)) {
+			Blockage blockage = blockageList.get(cellName);
+			if(blockage.getStartTime() >= timeStep && timeStep <= blockage.getEndTime()) {
+				blockagePercent = blockage.getBlockagePercent();
+			}
+		}
+		
+		return blockagePercent;
 	}
 }

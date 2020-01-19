@@ -1,0 +1,36 @@
+#configuration file (do not change order of parameters)
+input directory: examples/
+output directory: examples/output/SYD350-SbFD/01/
+parameter file name: parameters/sbfdParamBER.txt
+link configuration file name: networks/SYD350_links.txt
+cell configuration file name: networks/SYD350_cells.txt
+route configuration file name: networks/SYD350_route.txt
+fundamental diagram: SbFD
+CFL factor: 1.0
+
+# Output
+text output: false
+debug output: false
+
+# Visualization
+visualization: true
+display cell names: true
+display numbers: false
+correspondences (visualization) file name: parameters/correspondences_visualization.txt
+
+# Demand
+demand format: aggregate
+demand file name: demand/SYD350_demand.txt
+write aggregated table: true
+
+# Calibration
+parameter search range file: parameters/sbfdParamSearchSpace.txt
+calibration mode: travel time distribution
+aggregation period (sec): 6
+
+# Blockage
+blockage configuration file name: networks/SYD350_00_blockage.txt
+
+# Stochastic Route Choice
+alpha: -0.5
+beta: -0.7

@@ -1,3 +1,4 @@
+
 package anisopedctm;
 
 import java.io.File;
@@ -5,11 +6,15 @@ import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.HashSet;
 import java.util.Hashtable;
+import java.util.Set;
 
 /**
  * Computation board
  *
  * @author Flurin Haenseler, Gael Lederrey
+ *
+ * @version StochasticAnisoPedCTM v1.0
+ * @author Shubhankar Mathur
  *
  */
 
@@ -21,13 +26,14 @@ public class Board {
 	private Output output;
 	private Debug debug;
 	private Visualization visualization;
-
+	
 	//hashtables
 	private Hashtable<String, Cell> cellList;
 	private Hashtable<Integer, Link> linkList;
 	private Hashtable<Integer, Node> nodeList;
 	private Hashtable<String, Route> routeList;
 	private Hashtable<Integer, Group> groupList; //represents demand
+	private Hashtable<String, Blockage> blockageList;
 	
 	private Hashtable<Integer, Pedestrian> pedList; //disaggregate OD table (for calibration only)
 
@@ -46,7 +52,7 @@ public class Board {
 
 	//constructor
 	public Board(String pathScenario) {
-
+		
 		input = new Input();
 		output = new Output();
 		debug = new Debug();
@@ -75,6 +81,8 @@ public class Board {
 		nodeList = input.buildNodes(cellList, linkList);
 
 		routeList = input.loadRoutes(cellList, zoneList, linkList, nodeList, param);
+		
+		blockageList = input.loadBlockages(param);
 		
 		//load demand either from disaggregate or from aggregated table
 		if(param.getDemandFormat().equals("disaggregate")) {
@@ -112,11 +120,17 @@ public class Board {
 
 		//perform simulation
 		//simulation stops maxTravelTime after the last departure
+		
+		//TODO: change maxTime calculation logic for the loop to end at right time
 		int maxTime = getLastDeparture() + Parameter.MaxTravelTime;
 
 		double totAcc;
 
 		for (int timeStep = 0; timeStep <= maxTime; timeStep++) {
+			
+			//Calculate critical velocity per route per group
+			
+			
 			//perform an iteration step
 			iterate(timeStep);
 
@@ -128,6 +142,7 @@ public class Board {
 				// Draw all the pictures
 				visualization.drawPictures(timeStep, cellList, linkList, param);
 			}
+			
 
 			// We had the condition to stop if there isn't any pedestrian in the cells
 
@@ -146,42 +161,71 @@ public class Board {
 		if (param.writeOutput) {
 			output.writeTravelTime(groupList, param);
 			
-			if(param.getWriteAggTable() == true){
-				output.writeAggregatedTable(groupList, param, getLogLikelihood());
-			}
-			
-			if (param.getDemandFormat().equals("disaggregate") && param.getWriteAggTable()) {
-				output.writeDisAggTable(groupList, pedList, param, getLogLikelihood());
-			}
+			//TODO Y: check if getLogLikelihood is needed 
+//			if(param.getWriteAggTable() == true){
+//				output.writeAggregatedTable(groupList, param, getLogLikelihood());
+//			}
+//			
+//			if (param.getDemandFormat().equals("disaggregate") && param.getWriteAggTable()) {
+//				output.writeDisAggTable(groupList, pedList, param, getLogLikelihood());
+//			}
 		}
 
 	}
-
+	
+	//Reduce usable cell area if there's a blockage that starts at the particular timeStep or 
+	//increase it and bring back to original if blockage is fixed. 
+	public void considerCellBlockage(int timeStep) {
+		
+		Cell cell;
+		
+		for(Blockage blockage: this.blockageList.values()) {
+			if(blockage.getStartTime() == timeStep ) {
+				cell = this.cellList.get(blockage.getCell());
+				cell.funDiag.cellArea = cell.funDiag.cellArea * (100 - blockage.getBlockagePercent())/100;
+			} else if (blockage.getEndTime() == timeStep) {
+				cell = this.cellList.get(blockage.getCell());
+				cell.funDiag.cellArea = 100 * cell.funDiag.cellArea / (100 - blockage.getBlockagePercent());
+			}	
+		}
+		
+//                System.out.println("Time : " + timeStep + " area : " + this.cellList.get("C18").areaSize);
+	}
+	
 	public void iterate(int timeStep) {
+		
+		
+		this.considerCellBlockage(timeStep);
+		
 		//fill sources with entering groups
 		this.fillSources(timeStep);
 
 		//compute prevailing and critical speed on all links
 		for (Cell curCell : cellList.values()){
 			curCell.computeAccVelCritVel(linkList);
+			
 		}
 
 		//compute node potentials for all nodes for all routes, pre-compute route choice model
-		potField.computeAllNodePotentials(linkList, nodeList, routeList, sourceSinkNodes, param);
+		potField.computeAllNodePotentials(linkList, nodeList, routeList, sourceSinkNodes, param, blockageList, timeStep);
 
 		//reset flows (sending capacities, candidate inflow, total in- and outflows)
 		for (Link curLink : linkList.values()) {
+//			System.out.println("Link critical velocity: "+ curLink.getCritVelNd());
+//			System.out.println("Resetting, curLink recCap: " + curLink.recCap());
+//			System.out.println("Resetting flow of curLink: cell_name:" + ", " + curLink.cellName + ", " + curLink.origCellName + ", " + curLink.destCellName);
 			curLink.resetFlows();
 		}
 
 		//compute sending capacities
 		for (Link curLink : linkList.values()) {
 			//computes sending capacity hash tables for all fragments on curLink, update candidate inflow
-			curLink.setSendCap(linkList, nodeList, groupList, param);
+			curLink.setSendCap(linkList, nodeList, groupList, param, blockageList, timeStep);
 		}
 
 		//propagate people
 		for (Link curLink: linkList.values()) {
+//			System.out.println("current Link: cell_name:" + ", " + curLink.cellName + ", " + curLink.origCellName + ", " + curLink.destCellName);
 			curLink.propagate(linkList);
 		}
 
@@ -224,9 +268,15 @@ public class Board {
 		int groupID; //current groupID
 		int depTime; //departure time of current group
 		double numPeople; //size of current group
-		String routeName; //route of current group
-		int sourceLinkID; //source link of current group
-
+//		String routeName; //route of current group
+		int sourceLinkID = -1; //source link of current group	//TODO: check this default value
+		ArrayList<Group> subGroupList = new ArrayList<>();
+		
+		Route curRoute;
+		Group curGroup;
+		Node curNode;
+		String noneCell = new String("none");
+		
 		//iterate over all groups
 		Enumeration<Integer> enumGroups = groupList.keys();
 		while (enumGroups.hasMoreElements()) {
@@ -234,22 +284,107 @@ public class Board {
 			groupID = enumGroups.nextElement();
 			depTime = groupList.get(groupID).getDepTime();
 
-			//if group departs in current time step, load them
-			if (timeStep == depTime) {
-				//get route and source link of current group
-				routeName = groupList.get(groupID).getRouteName();
-				sourceLinkID = routeList.get(routeName).getSourceLinkID();
+			curGroup = groupList.get(groupID);
 
-				//get group size
-				numPeople = groupList.get(groupID).getNumPeople();
+			//Calculate velocity for all cells along the route
 
-				//add group to source link
-				linkList.get(sourceLinkID).addFrag(groupID, numPeople);
+				//if group departs in current time step, load them
+				if (timeStep == depTime) {
+					//get route and source link of current group
 
-				//output time step on screen
-				//timeStepLog(timeStep);
-			}
+					ArrayList<Group> subGroupListOfCurGroup = new ArrayList<>();
+					
+					
+//					Calculate average critical speed of all cells along the node encompassing the routes
+					for (String routeName : curGroup.getRouteOptions()) {
+						
+						if (null == routeName || routeName.isEmpty()) {
+							System.out.println("routeName cannot be null or empty.");
+							continue;
+						}
+						
+						ArrayList<Double> critVelListPerRoute = new ArrayList();
+						String curAdjCell;
+						Hashtable<String, String> adjCells = new Hashtable<String, String>();
+						Set<Integer> nodeIds = new HashSet();
+						HashSet<String> adjacentCellsOfNode = new HashSet();
+						
 
+						//					routeName = groupList.get(groupID).getRouteName();
+						curRoute = routeList.get(routeName);
+						sourceLinkID = curRoute.getSourceLinkID();
+
+						nodeIds = curRoute.getRouteNodes();
+
+						for(Integer nodeId: nodeIds) {
+							curNode = nodeList.get(nodeId);
+							adjacentCellsOfNode.addAll(curNode.getadjacentCells());		//HashSet will only have unique cells
+						}
+
+						adjacentCellsOfNode.remove(noneCell);
+
+						for (String curCell: adjacentCellsOfNode) {
+							Cell cell = cellList.get(curCell);
+							adjCells = cell.adjCellPos;
+							
+							Enumeration<String> adjcellKeys = adjCells.keys();
+							while(adjcellKeys.hasMoreElements()) {
+								curAdjCell = adjcellKeys.nextElement();
+								double critVel;
+                                                                
+                                                                double availablePercent = 1.0;
+                                                                
+                                                                for(Blockage blockage: this.blockageList.values()) {
+                                                                    if(blockage.getStartTime() <= timeStep && blockage.getEndTime() >= timeStep) {
+                                                                        if (curAdjCell.equals(blockage.getCell())){
+                                                                            availablePercent = 1 - (blockage.getBlockagePercent()/100);
+                                                                        }
+                                                                    } 	
+                                                                }
+
+								critVel = cell.getStreamVel(adjCells.get(curAdjCell),linkList) * param.getFreeSpeed()/ visualization.critValues.get("critVel");
+								if (critVel > 0.0) {
+									critVelListPerRoute.add(critVel *availablePercent);
+								} else {
+									critVelListPerRoute.add(param.getFreeSpeed()*availablePercent );
+								}
+							}
+						}
+
+						Double averageCritVel = critVelListPerRoute.stream().mapToDouble(a -> a).average().orElse(0.0);
+						curRoute.setRouteCricVelocity(averageCritVel);
+					}
+
+					//TODO: call stochastic formula and alter numPeople of the main-group
+					
+					subGroupListOfCurGroup = curGroup.performStochasticRoute(curGroup, routeList);
+					curGroup.setNumPeople(subGroupListOfCurGroup.get(0).getNumPeople());
+					subGroupListOfCurGroup.remove(0);
+					
+					//Adding people to the fragment
+					numPeople = curGroup.getNumPeople();
+					sourceLinkID = routeList.get(curGroup.getRouteName()).getSourceLinkID();	//sourceLinkID as per route of the subgroup
+					linkList.get(sourceLinkID).addFrag(groupID, numPeople);
+					System.out.println("Route : " + curGroup.getRouteName() + " numPeople : " + numPeople);
+                                        
+					int size = 0;
+					for (Group subGroup: subGroupListOfCurGroup) {
+						//insert subgroup at the end of the main groupList
+						size = groupList.size();
+						groupList.put(size, subGroup);	
+						
+						numPeople = subGroup.getNumPeople();
+						sourceLinkID = routeList.get(subGroup.getRouteName()).getSourceLinkID();	//sourceLinkID as per route of the subgroup
+						linkList.get(sourceLinkID).addFrag(size, numPeople);	//add group to source link
+                                                System.out.println("Route : " + subGroup.getRouteName() + " numPeople : " + numPeople);
+					}
+					
+					
+//					subGroupList.addAll(subGroupListOfCurGroup);
+					
+					//output time step on screen
+					//timeStepLog(timeStep);
+				}
 		}
 
 	}
@@ -484,9 +619,9 @@ public class Board {
 			
 			double logLikelihood = 0.0;
 			
-			for (int pedID = 0; pedID < pedList.size(); pedID++) {
-				logLikelihood += Math.log( pedList.get(pedID).getTravTimeObsProb(groupList, param) );
-			}
+//			for (int pedID = 0; pedID < pedList.size(); pedID++) {
+////				logLikelihood += Math.log( pedList.get(pedID).getTravTimeObsProb(groupList, param) );
+//			}
 			
 			//System.out.println("logLikelihood: " + logLikelihood);
 			
@@ -605,9 +740,5 @@ public class Board {
 		
 		calib.crossValidateMulti(disAggDemTables);		
 	}
-	
-	
-	
-	
 	
 }

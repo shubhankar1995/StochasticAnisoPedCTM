@@ -714,7 +714,7 @@ public class Calibration {
 			sourcePed = pedListSource.get(i);
 			
 			newPed = new Pedestrian(sourcePed.getRouteName(),
-					sourcePed.getDepTime() + timeShift, sourcePed.getTravelTime());
+					sourcePed.getDepTime() + timeShift, sourcePed.getTravelTime(), sourcePed.getRouteName2(), sourcePed.getRouteName3()); // ** modified
 			
 			pedListTarget.put(pedListTarget.size(), newPed);
 		}

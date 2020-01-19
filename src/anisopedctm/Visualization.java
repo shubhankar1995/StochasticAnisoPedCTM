@@ -6,6 +6,7 @@ import java.awt.Font;
 import java.awt.FontMetrics;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
+import java.awt.Polygon;
 import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
 import java.io.File;
@@ -25,6 +26,9 @@ import javax.imageio.ImageIO;
  * P.S.: A copy is a copy of flow. The link flows are aggregated by destination node.
  *
  * @author Flurin Haenseler, Gael Lederrey
+ *
+ * @version StochasticAnisoPedCTM v1.0
+ * @author Shubhankar Mathur
  */
 
 
@@ -189,7 +193,8 @@ public class Visualization {
 		// The size of the image is a little bit bigger than the size of the cells
 	    this.imageHeight = (int)Math.round(factor*(maxVert-minVert)+100);
 		this.imageWidth = (int)Math.round(factor*(maxHori-minHori)+100+200);
-
+            
+            System.out.println("imageWidth="+imageWidth+ "  imageHeight" + imageHeight);
 	    this.image = new BufferedImage(imageWidth, imageHeight, BufferedImage.TYPE_INT_RGB);
 
 	    // Length of the colorbar
@@ -288,7 +293,7 @@ public class Visualization {
 	}
 
 	// Write the value in the middle of the cell
-	public void writeCellValue(Graphics2D g2D, String cellname, double value){
+	public void writeCellValue(Graphics2D g2D, String cellname, double value, float[] coordinates){
 
 		g2D.setFont(new Font(g2D.getFont().getFontName(), Font.PLAIN, 20));
 
@@ -306,12 +311,16 @@ public class Visualization {
 		int yPos = (int)Math.round(cellYPosition.get(cellname) + (cellHeight.get(cellname) - fm.getHeight())/2.0 + fm.getAscent()/4.0);
 
 		// Before writing the value of the arrow, we draw a white rectangle. It helps to read more easily the values
-		g2D.setColor(Color.WHITE);
-		g2D.fillRect(xPos - 2,  this.imageHeight - yPos - fm.getHeight() + 5, totalWidth,fm.getHeight());
+//		g2D.setColor(Color.WHITE);
+//		g2D.fillRect(xPos - 2,  this.imageHeight - yPos - fm.getHeight() + 5, totalWidth,fm.getHeight());
 
 		// Now, we write the value
 		g2D.setColor(Color.BLACK);
-		g2D.drawString(str, xPos , this.imageHeight - yPos);
+		
+		int[] intPoints = getIntersectionPoint(coordinates);
+		
+//		g2D.drawString(str, xPos , this.imageHeight - yPos);
+		g2D.drawString(str, intPoints[0] , intPoints[1]);
 
 	}
 
@@ -334,21 +343,57 @@ public class Visualization {
 		// We draw the rectangles
 		while(cellKeys.hasMoreElements()) {
 			curCell = cellKeys.nextElement();
-
+			Cell currentCell = cellList.get(curCell);
+			int[] intPoints = getIntersectionPoint(currentCell.coordinates);
+			
+			
 			// We set the color for the name
 			g2D.setColor(Color.BLACK);
-			g2D.drawString(curCell,cellXPosition.get(curCell) + 5, this.imageHeight - (cellYPosition.get(curCell) + cellHeight.get(curCell) - 15)  );
+//			g2D.drawString(curCell,cellXPosition.get(curCell) + 5, this.imageHeight - (cellYPosition.get(curCell) + cellHeight.get(curCell) - 15)  );
+			g2D.drawString(curCell, intPoints[0], intPoints[1]);
 		}
 
 		g2D.dispose();
 	}
+	
+	public int[] getIntersectionPoint(float points[]) {
+		
+		int[] intPoints = new int[2];
+		float[] factorisedPoints = new float[8];
+		
+		for(int i = 0; i < points.length; i++) {
+			factorisedPoints[i] = points[i] * factor;
+		}
+		
+//		double a1 = factorisedPoints[5] - factorisedPoints[1]; 
+//        double b1 = factorisedPoints[0] - factorisedPoints[2]; 
+//        double c1 = (a1*(factorisedPoints[0]) + b1*(factorisedPoints[1])) ; 
+//       
+//        double a2 = factorisedPoints[7] - factorisedPoints[3]; 
+//        double b2 = factorisedPoints[2] - factorisedPoints[6]; 
+//        double c2 = (a2*(factorisedPoints[4])+ b2*(factorisedPoints[5])); 
+//       
+//        double determinant = a1*b2 - a2*b1; 
+//       
+//        double x = (b2*c1 - b1*c2)/determinant; 
+//        double y = (a1*c2 - a2*c1)/determinant; 
+         
+		double x = (factorisedPoints[0] + factorisedPoints[4])/2 - 50;
+		double y = (factorisedPoints[1] + factorisedPoints[5])/2 + 20;
+		
+		intPoints[0] = (int) x;
+		intPoints[1] = (int) y;
 
+		return intPoints;
+	}
+	
 	// Function to draw the lines for the cells
 	public void drawCells(Color color, Hashtable<String, Cell> cellList) {
 		Enumeration<String> cellKeys = cellList.keys(); //enumeration of all cells
 
 		String curCell;
-
+		int no_of_points = 4;
+		
 		Graphics g = image.getGraphics();
 
 	    Graphics2D g2D = (Graphics2D) g;
@@ -362,10 +407,25 @@ public class Visualization {
 		// We draw the rectangles
 		while(cellKeys.hasMoreElements()) {
 			curCell = cellKeys.nextElement();
-
+			Cell currentCell = cellList.get(curCell);
+			float[] points = currentCell.coordinates; 
+			
+			Polygon poly = new Polygon();
+			
+			for (int i = 0; i < no_of_points; i++) {
+				poly.addPoint( (int) (points[2*i] * 100), (int) (points[2*i + 1] * 100));
+			}
+			
 			// We set the color for the lines
 			g2D.setColor(color);
-			g2D.drawRect(cellXPosition.get(curCell), this.imageHeight - (cellYPosition.get(curCell) + cellHeight.get(curCell)), cellWidth.get(curCell), cellHeight.get(curCell));
+			
+//			g2D.drawPolygon(poly);
+//			if (curCell.equals("C183520349318594013630]")) {
+//				g2D.fillPolygon(poly);
+//			}
+//			g2D.drawRect(cellXPosition.get(curCell), this.imageHeight - (cellYPosition.get(curCell) + cellHeight.get(curCell)), cellWidth.get(curCell), cellHeight.get(curCell));
+			g2D.drawPolygon(poly);
+		
 		}
 
 		g2D.dispose();
@@ -380,6 +440,8 @@ public class Visualization {
 		Graphics g = image.getGraphics();
 
 		Graphics2D g2D = (Graphics2D) g;
+		
+		int no_of_points = 4;
 
 	  	// We set some better rendering for the pictures
 	  	g2D.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
@@ -444,7 +506,18 @@ public class Visualization {
 				}
 
 				// Fill the rectangle with the color
-				g2D.fillRect(cellXPosition.get(curCell), this.imageHeight - (cellYPosition.get(curCell) + cellHeight.get(curCell)), cellWidth.get(curCell), cellHeight.get(curCell));
+//				g2D.fillRect(cellXPosition.get(curCell), this.imageHeight - (cellYPosition.get(curCell) + cellHeight.get(curCell)), cellWidth.get(curCell), cellHeight.get(curCell));
+				
+				Cell currentCell = cellList.get(curCell);
+				float[] points = currentCell.coordinates; 
+				
+				Polygon poly = new Polygon();
+				
+				for (int i = 0; i < no_of_points; i++) {
+					poly.addPoint( (int) (points[2*i] * 100), (int) (points[2*i + 1] * 100));
+				}
+				g2D.fillPolygon(poly);
+//				g2D.drawPolygon(poly);
 			}
 
 			tableValues.put(curCell, value);
@@ -463,7 +536,7 @@ public class Visualization {
 
 				if(roundToSecondDecimal(tableValues.get(curCell)) >= tol)
 				{
-					writeCellValue(g2D, curCell, tableValues.get(curCell));
+					writeCellValue(g2D, curCell, tableValues.get(curCell), cellList.get(curCell).coordinates);
 				}
 			}
 		}
@@ -551,9 +624,13 @@ public class Visualization {
 			ddx = (int)Math.round(0.5*cellWidth.get(curCell));
 			ddy = (int)Math.round(0.5*cellHeight.get(curCell));
 
-			xCenter = cellXPosition.get(curCell) + ddx;
-			yCenter = cellYPosition.get(curCell) + ddy;
-
+//			xCenter = cellXPosition.get(curCell) + ddx;
+//			yCenter = cellYPosition.get(curCell) + ddy;
+			
+			int[] points = getIntersectionPoint(cellList.get(curCell).coordinates);
+			xCenter = points[0] + ddx/2;
+			yCenter = points[1] + ddy;
+			
 			adjCells = cellList.get(curCell).adjCellPos;
 
 			Enumeration<String> adjcellKeys = adjCells.keys();
@@ -637,7 +714,8 @@ public class Visualization {
 				else if(type == "SPEED_vcrit")
 				{
 					tmpValue = cellList.get(curCell).getStreamVel(adjCells.get(curAdjCell),linkList)*param.getFreeSpeed()/critValues.get("critVel");
-				}
+//                                        System.out.println("Visual tmpValue: " + tmpValue);
+                                }
 
 
 				// We will, now, fill the Hashtable directionValues
@@ -705,7 +783,7 @@ public class Visualization {
 					if(param.displayNumbers == true)
 					{
 						// Write the value
-						writeArrowValue(g2D,curCell,directionValues.get(curDir),maxValue,corresps.get(curDir),dd);
+						writeArrowValue(g2D,curCell,directionValues.get(curDir),maxValue,corresps.get(curDir),dd, cellList);
 					}
 				}
 			}
@@ -803,7 +881,7 @@ public class Visualization {
 	}
 
 	// Write the value for an arrow
-	public void writeArrowValue(Graphics2D g2D, String cellname, double value, double maxValue, String arrowDirection, int arrow_head){
+	public void writeArrowValue(Graphics2D g2D, String cellname, double value, double maxValue, String arrowDirection, int arrow_head, Hashtable<String, Cell> cellList){
 
 		g2D.setFont(new Font(g2D.getFont().getFontName(), Font.PLAIN, 20));
 
@@ -821,7 +899,11 @@ public class Visualization {
 
 		int xPos = 0;
 		int yPos = 0;
-
+		
+		int[] points = getIntersectionPoint(cellList.get(cellname).coordinates);
+		xPos = points[0];
+		yPos = points[1];
+		
 		if(roundToSecondDecimal(value) >= tol)
 		{
 
@@ -833,8 +915,12 @@ public class Visualization {
 				{
 					xShift = (int)Math.round(2.5*xShift);
 				}
-				xPos = (int)Math.round(cellXPosition.get(cellname) + 0.5*cellWidth.get(cellname) + xShift);
-				yPos = (int)Math.round(cellYPosition.get(cellname) + 3.0/4.0*cellHeight.get(cellname) - fm.getHeight()/2.0 + fm.getAscent()/4.0);
+//				xPos = (int)Math.round(cellXPosition.get(cellname) + 0.5*cellWidth.get(cellname) + xShift);
+//				yPos = (int)Math.round(cellYPosition.get(cellname) + 3.0/4.0*cellHeight.get(cellname) - fm.getHeight()/2.0 + fm.getAscent()/4.0);
+				
+				xPos += (0.5*cellWidth.get(cellname) + xShift)/2;
+				yPos += 3.0/4.0*cellHeight.get(cellname) - fm.getHeight()/2.0 + fm.getAscent()/4.0;
+				
 			}
 			// If the arrow points in the DOWN direction, we will place the text on the right
 			else if(arrowDirection.equals("DOWN"))
@@ -844,8 +930,11 @@ public class Visualization {
 				{
 					xShift = (int)Math.round(2.5*xShift);
 				}
-				xPos = (int)Math.round(cellXPosition.get(cellname) + 0.5*cellWidth.get(cellname) - xShift - totalWidth);
-				yPos = (int)Math.round(cellYPosition.get(cellname) + 1.0/4.0*cellHeight.get(cellname) - fm.getHeight()/2.0 + fm.getAscent()/4.0);
+//				xPos = (int)Math.round(cellXPosition.get(cellname) + 0.5*cellWidth.get(cellname) - xShift - totalWidth);
+//				yPos = (int)Math.round(cellYPosition.get(cellname) + 1.0/4.0*cellHeight.get(cellname) - fm.getHeight()/2.0 + fm.getAscent()/4.0);
+				
+				xPos += (0.5*cellWidth.get(cellname) - xShift - totalWidth)/2;
+				yPos += 1.0/4.0*cellHeight.get(cellname) - fm.getHeight()/2.0 + fm.getAscent()/4.0;
 			}
 			// If the arrow points in the RIGHT direction, we will place the text below the arrow
 			else if(arrowDirection.equals("RIGHT"))
@@ -857,8 +946,11 @@ public class Visualization {
 					yShift = (int)Math.round(2.5*yShift);
 					xShift = 0;
 				}
-				xPos = (int)Math.round(cellXPosition.get(cellname) + 3.0/4.0*cellWidth.get(cellname) - totalWidth/2.0 - xShift);
-				yPos = (int)Math.round(cellYPosition.get(cellname) + (cellHeight.get(cellname) - fm.getHeight())/2.0 + fm.getAscent()/4.0 - yShift);
+//				xPos = (int)Math.round(cellXPosition.get(cellname) + 3.0/4.0*cellWidth.get(cellname) - totalWidth/2.0 - xShift);
+//				yPos = (int)Math.round(cellYPosition.get(cellname) + (cellHeight.get(cellname) - fm.getHeight())/2.0 + fm.getAscent()/4.0 - yShift);
+				
+				xPos += (3.0/4.0*cellWidth.get(cellname) - totalWidth/2.0 - xShift)/2;
+				yPos += (cellHeight.get(cellname) - fm.getHeight())/2.0 + fm.getAscent()/4.0 - yShift;
 			}
 			// If the arrow points in the LEFT direction, we will place the text above the arrow
 			else // arrowDirection.equals("LEFT")
@@ -870,8 +962,11 @@ public class Visualization {
 					yShift = (int)Math.round(2.5*yShift);
 					xShift = 0;
 				}
-				xPos = (int)Math.round(cellXPosition.get(cellname) + 1.0/4.0*cellWidth.get(cellname) - totalWidth/2.0 + xShift);
-				yPos = (int)Math.round(cellYPosition.get(cellname) + (cellHeight.get(cellname) - fm.getHeight())/2.0 + fm.getAscent()/4.0 + yShift);
+//				xPos = (int)Math.round(cellXPosition.get(cellname) + 1.0/4.0*cellWidth.get(cellname) - totalWidth/2.0 + xShift);
+//				yPos = (int)Math.round(cellYPosition.get(cellname) + (cellHeight.get(cellname) - fm.getHeight())/2.0 + fm.getAscent()/4.0 + yShift);
+				
+				xPos += (1.0/4.0*cellWidth.get(cellname) - totalWidth/2.0 + xShift)/2;
+				yPos += (cellHeight.get(cellname) - fm.getHeight())/2.0 + fm.getAscent()/4.0 + yShift;
 			}
 
 			// Before writing the value of the arrow, we draw a white rectangle. It helps to read more easily the values

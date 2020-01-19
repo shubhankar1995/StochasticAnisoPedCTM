@@ -3,6 +3,7 @@ package anisopedctm;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
+import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.HashSet;
 import java.util.Hashtable;
@@ -11,6 +12,9 @@ import java.util.Hashtable;
  * Input class
  *
  * @author Flurin Haenseler, Gael Lederrey
+ * 
+ * @version StochasticAnisoPedCTM v1.0
+ * @author Shubhankar Mathur
  *
  */
 
@@ -60,7 +64,7 @@ public class Input {
 
 		//parameters
 		String inDir = "", outDir = "", paramFile = "", linkFile = "";
-		String cellFile = "", routeFile = "", funDiagName = "";
+		String cellFile = "", routeFile = "", funDiagName = "", blockageFile = "";
 		double cflFactor = 1.0;
 		boolean textOutput = false, textDebug = false, visualOut = false, showNumbers = false, showCellNames = false;
 		String correspFile = "";
@@ -70,6 +74,8 @@ public class Input {
 		String paramRangeFile = "";
 		String calibMode = "";
 		double aggPeriodCalib = 0.0;
+                double alpha = 0.0;
+                double beta = 0.0;
 
 		//extract information from each line
 		try {
@@ -265,8 +271,28 @@ public class Input {
 				throw new IllegalArgumentException("Illegal value on line 29. It should be 'aggregation period (sec): "
 							+ "{0.0-Double.Infinty}'");
 			}	
-
-
+			
+			lineElements = fileLines[31].split(":");
+			if (lineElements[0].equals("blockageconfigurationfilename")) {
+				blockageFile = String.valueOf(lineElements[1]);
+			} else {
+				throw new IllegalArgumentException("Illegal value on line 31. It should be 'blockage configuration file name: "
+							+ "path/to/blockage/configuration/f/file.txt'");
+			}
+                        
+                        lineElements = fileLines[34].split(":");
+			if (lineElements[0].equals("alpha")) {
+				alpha = Double.valueOf(lineElements[1]);
+			} else {
+				throw new IllegalArgumentException("Illegal value on line 34. It should have correct value of Stochastic alpha parameter in decimal");
+			}
+			
+                        lineElements = fileLines[35].split(":");
+			if (lineElements[0].equals("beta")) {
+				beta = Double.valueOf(lineElements[1]);
+			} else {
+				throw new IllegalArgumentException("Illegal value on line 34. It should have correct value of Stochastic beta parameter in decimal");
+			}
 		}
 		catch(Exception e){
 			e.printStackTrace();
@@ -274,7 +300,7 @@ public class Input {
 
 		return new Parameter(inDir, outDir, paramFile, paramRangeFile, linkFile, cellFile, routeFile,
 				funDiagName, cflFactor, textOutput, textDebug, visualOut, showNumbers, showCellNames, correspFile,
-				demandFormat, demandFile, writeAggTable, calibMode, aggPeriodCalib);
+				demandFormat, demandFile, writeAggTable, calibMode, aggPeriodCalib, blockageFile, alpha, beta);
 	}
 
 
@@ -602,6 +628,45 @@ public class Input {
 		return cellList;
 	}
 
+	public Hashtable<String, Blockage> loadBlockages(Parameter param) {
+		File blockageFile = new File(param.blockageFilePath);
+		Hashtable<String, Blockage> blockageList = new Hashtable();
+		
+		String[] fileLines = getFileLines(blockageFile);
+		String cellName;
+		int startTime;
+		int endTime;
+		Double blockagePercent;
+		Blockage blockage;
+		int lineNr = 1;
+		
+		
+			String[] lineElements = new String[Parameter.LimitLineLength];
+			while (!fileLines[lineNr].equals(EOF)) {
+				lineElements = fileLines[lineNr].split(",");
+				cellName = lineElements[0];
+				startTime = Integer.parseInt(lineElements[1]);
+				endTime = Integer.parseInt(lineElements[2]);
+				blockagePercent = Double.parseDouble(lineElements[3]);
+				
+				if (startTime > endTime) {
+					throw new IllegalArgumentException("For cell" + cellName + "startTime cant be same as of after endTime");
+				}
+				
+				if(blockagePercent > 100.00) {
+					throw new IllegalArgumentException("Blockage Percentage for cell" + cellName + "cant be ≥ 100");
+				}
+				
+				blockage = new Blockage(cellName, startTime, endTime, blockagePercent);
+				blockageList.put(cellName, blockage);
+				
+				lineNr++;
+			}
+		
+		return blockageList;
+		
+	}
+	
 	//generate list of links from link layout file and cell list
 	//sets also length of time interval (Delta t = Delta l_min/v_f)
 	public Hashtable<Integer, Link> loadLinks(Hashtable<String, Cell> cellList,
@@ -880,6 +945,7 @@ public class Input {
 		//current route and route name
 		Route curRoute;
 		String curRouteName;
+                double routeDistance;
 
 		//zone sequence
 		String[] zoneSeq; //mathematically: origZone, innerZones, destZone
@@ -899,9 +965,11 @@ public class Input {
 
 				//retrieve zone sequence
 				zoneSeq = lineElements[1].split("-");
+                                
+                                routeDistance = Double.parseDouble(lineElements[2]);
 
 				//generate route
-				curRoute = new Route(zoneSeq);
+				curRoute = new Route(zoneSeq, routeDistance);
 
 				//for each zone, check feasibility and add route nodes
 				for (String zoneName : zoneSeq){
@@ -987,7 +1055,15 @@ public class Input {
 
 			int lineNr = 1; //Line Number, starting on second line
 			
-			String routeName; //route name
+			String routeName; //route name 1st preference
+                                             
+                        /*
+                        Making changes to add 2 other route preference
+                        */
+                        
+                        String routeName2;// 2nd prefrence
+                        String routeName3;// 3rd preference
+                        
 			double depTime, travelTime; //observed departure time and travel time
 			
 			Pedestrian curPed;
@@ -1006,9 +1082,12 @@ public class Input {
 				depTime = Double.parseDouble(lineElements[1]);
 				
 				travelTime = Double.parseDouble(lineElements[2]);
+                                
+                                routeName2 = lineElements[3];   // ** new
+                                routeName3 = lineElements[4];   // ** new
 				
 				//generate pedestrian
-				curPed = new Pedestrian(routeName, depTime, travelTime);
+				curPed = new Pedestrian(routeName, depTime, travelTime, routeName2, routeName3);  // ** modified
 				
 				pedList.put(lineNr-1, curPed);
 
@@ -1101,6 +1180,8 @@ public class Input {
 		//line number, starting on second line
 		//line number also used as group ID
 		int lineNr = 1;
+                
+                
 
 		//extract information from each line
 		try {
@@ -1127,7 +1208,18 @@ public class Input {
 				}
 
 				//generate group
-				curGroup = new Group(routeName, depTime, numPeople);
+				ArrayList<String> routeOptions= new ArrayList<String>();
+				routeOptions.add(routeName);
+
+				if (!lineElements[4].equals("NA")){
+					routeOptions.add(lineElements[4]);
+				}
+
+				if (!lineElements[5].equals("NA")){
+					routeOptions.add(lineElements[5]);
+				}
+				
+				curGroup = new Group(routeName, depTime, numPeople, routeOptions);
 
 				//add current group to group list, using lineNr as groupID
 				groupList.put(lineNr-1, curGroup);

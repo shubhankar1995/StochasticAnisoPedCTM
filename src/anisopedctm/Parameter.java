@@ -6,6 +6,9 @@ import java.util.Hashtable;
  * Parameter class
  * 
  * @author Flurin Haenseler, Gael Lederrey
+ *
+ * @version StochasticAnisoPedCTM v1.0
+ * @author Shubhankar Mathur
  */
 
 public class Parameter {
@@ -84,6 +87,9 @@ public class Parameter {
 	// Write the aggregated table at the end of the simulation
 	public final boolean writeAggTable;
 
+        public static double alpha;
+        public static double beta;
+        
 	//file paths input
 	public final String inputDir;
 	public final String paramFilePath;
@@ -94,6 +100,7 @@ public class Parameter {
 	public final String demandFilePath;
 	public final String correspFilePath;
 	public final String disaggTableFilePath;
+	public final String blockageFilePath;
 
 	//file paths output
 	public final String outputDir;
@@ -119,7 +126,8 @@ public class Parameter {
 	public Parameter(String inDir, String outDir, String paramFile, String paramRangeFile,
 			String linkFile, String cellFile, String routeFile, String funDiag, double cflFact,
 			boolean textOutput, boolean textDebug, boolean visualOut, boolean numbers, boolean cellNames, String correspFile,
-			String demandFormat, String demandFile, boolean writeAggTable, String calibMode, double aggPerCalib) {
+			String demandFormat, String demandFile, boolean writeAggTable, String calibMode, double aggPerCalib, String blockageFile,
+                        double alphaParam, double betaParam) {
 
 		outputDir = outDir;
 		inputDir = inDir;
@@ -131,6 +139,7 @@ public class Parameter {
 		routeFilePath = inputDir + routeFile;
 		demandFilePath = inputDir + demandFile;
 		correspFilePath = inputDir + correspFile;
+		blockageFilePath = inputDir + blockageFile;
 
 		funDiagName = funDiag;
 		cflFactor = cflFact;
@@ -172,8 +181,10 @@ public class Parameter {
 		}
 
 		minLinkLength = Double.NaN;
+                alpha = alphaParam;
+                beta = betaParam;
 	}
-
+        
 	//set parameters associated with fundamental diagram and route choice model
 	public void setFDRChParam(double vf, Double[] shapeParam, double mu) {
 

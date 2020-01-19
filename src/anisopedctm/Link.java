@@ -7,6 +7,9 @@ import java.util.Hashtable;
  * Link class
  *
  * @author Flurin Haenseler, Gael Lederrey
+ *
+ * @version StochasticAnisoPedCTM v1.0
+ * @author Shubhankar Mathur
  */
 
 
@@ -127,6 +130,7 @@ public class Link {
 	}
 
 	public Double getRelTravTime() {
+//            System.out.println("getRelTravTime: " + this.relLength/this.velNd + " this.relLength :" + this.relLength +" this.velNd :" + this.velNd  + " this.critVelNd :" + this.critVelNd);
 		return this.relLength/this.velNd;
 	}
 
@@ -143,6 +147,7 @@ public class Link {
 	}
 
 	public void setCritVelNd(double d) {
+//                System.out.println("setCritVelNd: " +d);
 		this.critVelNd = d;
 	}
 
@@ -407,7 +412,7 @@ public class Link {
 
 	//set sending capacities for fragment corresponding to groupID
 	private void setSendCapFrag(int groupID, Hashtable<Integer, Link> linkList, Hashtable<Integer, Node> nodeList,
-		Hashtable<Integer, Group> groupList, Parameter param){
+		Hashtable<Integer, Group> groupList, Parameter param, Hashtable<String, Blockage> blockList, int timeStep){
 
 		//get fragment corresponding to groupID
 		Fragment frag = fragList.get(groupID);
@@ -423,19 +428,30 @@ public class Link {
 
 		double routeSplitFrac; //container for route choice fraction
 		double curSendCap; //container for current sending capacity
-
+		double availablePercent = 1;
 
 		//iterate over all out links
 		for (int targLinkID : nodeList.get(destNodeID).getOutLinks()){
 			//route choice fraction corresponding to route and target link (obtained from node)
 			//if targLinkID infeasible on current route, NaN is returned
 			routeSplitFrac = getRouteSplitFrac(routeName, targLinkID, linkList, nodeList, param);
-
+			
+			availablePercent = 1;
+			
+			String cell = linkList.get(targLinkID).cellName;
+			
+//			if (null != blockList.get(cell)) {
+//				Blockage blockage = blockList.get(cell);
+//				if(timeStep >= blockage.getStartTime() && timeStep <= blockage.getEndTime()) {
+//					availablePercent = (100 - blockList.get(cell).getBlockagePercent())/100;
+//				}
+//			}
+			
 			//if out link is part of current route
 			if (Double.isNaN(routeSplitFrac) == false)
 			{
 				//compute sending capacity
-				curSendCap = routeSplitFrac*fragFlow;
+				curSendCap = routeSplitFrac*fragFlow ;//* availablePercent;
 
 				//set sending capacity
 				frag.setSendCap(targLinkID, curSendCap);
@@ -448,7 +464,7 @@ public class Link {
 
 	//set sending capacities for all fragments
 	public void setSendCap(Hashtable<Integer, Link> linkList, Hashtable<Integer, Node> nodeList,
-		Hashtable<Integer, Group> groupList, Parameter param){
+		Hashtable<Integer, Group> groupList, Parameter param, Hashtable<String, Blockage> blockageList, int timeStep){
 		int groupID; //groupID of current fragment
 
 		//iterate over fragments
@@ -457,7 +473,7 @@ public class Link {
 		    groupID = fragKeys.nextElement();
 
 		    //set sending capacities corresponding to current fragment
-		    setSendCapFrag(groupID, linkList, nodeList, groupList, param);
+		    setSendCapFrag(groupID, linkList, nodeList, groupList, param, blockageList, timeStep);
 		}
 	}
 

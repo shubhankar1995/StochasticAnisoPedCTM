@@ -1,6 +1,8 @@
 package anisopedctm;
 
 import java.util.Hashtable;
+import static java.lang.Math.exp;
+
 
 /**
  * Represents OD and travel time information of a 'real' pedestrian.
@@ -10,23 +12,39 @@ import java.util.Hashtable;
  */
 
 public class Pedestrian {
-	private final String routeName; //observed route
+	private final String routeName; //observed rout e
 	
 	private final double depTime; //observed departure time
 	
 	private final double travelTimeObs; //observed travel time
+        
+        private final String routeName2; // ** new
+        
+        private final String routeName3; // ** new
 	
 	// constructor
-	public Pedestrian(String rName, double depT, double travT) {
+	public Pedestrian(String rName, double depT, double travT, String rName2, String rName3) { // ** modified the function defination
 		routeName = rName;
 		
 		depTime = depT;
 		
 		travelTimeObs = travT;
+                
+                routeName2 = rName2; // ** new
+                
+                routeName3 = rName3; // ** new
 	}
 
 	public String getRouteName() {
 		return routeName;
+	}
+        
+        public String getRouteName2() { // ** new
+		return routeName2;
+	}
+        
+        public String getRouteName3() { // ** new
+		return routeName3;
 	}
 
 	public double getDepTime() {
