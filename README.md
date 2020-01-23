@@ -3,7 +3,7 @@ StochasticAnisoPedCTM v1.0
 
 StochasticAnisoPedCTM is distributed free of charge. We ask the user to please explicitly mention the use of the package when publishing results, using the following reference:
 
-?????????????????????????????
+Mathur S, P 2020, StochasticAnisoPedCTM, Implementation of macroscopic pedestrian loading model, https://github.com/shubhankar1995/StochasticAnisoPedCTM
 
 Please see LICENSE.md for details on usage.
 
