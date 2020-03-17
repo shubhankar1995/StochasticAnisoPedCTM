@@ -1,10 +1,15 @@
 CONDITIONS OF USE
 
-AnisoPedCTM is distributed free of charge. We ask the user to please explicitly mention the use of the package when publishing results, using the following reference:
+StochasticAnisoPedCTM is distributed free of charge. We ask the user to please explicitly mention the use of the package when publishing results, using the following reference:
 
-Mathur,S.,Kalaee,M.S., 2020. A dynamic network loading model for anisotropic and congested pedestrian flows. 
+Hanseler, F. S., Lam, W. H. K., Bierlaire, M., Lederrey, G., Nikoli ́c, M., 2015. A dynamic network loading model for anisotropic and congested pedestrian flows. Presentation, 4th Annual Conference of The European Association for Research in Transportation, Copenhagen, Denmark.
+
+Mathur, S., Saberi, M., 2020, StochasticAnisoPedCTM: Implementation of macroscopic pedestrian loading model with route choice.
+https://github.com/shubhankar1995/StochasticAnisoPedCTM
 
 This software or any component of it is not for any commercial use. Moreover it is covered under the New BSD License.
+
+Please see LICENSE.md for details on usage and the original LICENSE.md in https://github.com/flurinus/anisopedctm.
 
 DISCLAIMER
 

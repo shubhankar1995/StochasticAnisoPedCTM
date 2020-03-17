@@ -1,11 +1,15 @@
 StochasticAnisoPedCTM v1.0
 ======
 
-StochasticAnisoPedCTM is distributed free of charge. We ask the user to please explicitly mention the use of the package when publishing results, using the following reference:
+StochasticAnisoPedCTM is a variation of the original AnisoPedCTM (please refer to https://github.com/flurinus/anisopedctm) which is distributed free of charge. We ask the user to please explicitly mention the use of both the original package and the variation when publishing results, using the following references:
 
-Mathur S, P 2020, StochasticAnisoPedCTM, Implementation of macroscopic pedestrian loading model, https://github.com/shubhankar1995/StochasticAnisoPedCTM
+Hanseler, F. S., Lam, W. H. K., Bierlaire, M., Lederrey, G., Nikoli ́c, M., 2015. A dynamic network loading model for anisotropic and congested pedestrian flows. Presentation, 4th Annual Conference of The European Association for Research in Transportation, Copenhagen, Denmark.
 
-Please see LICENSE.md for details on usage.
+Mathur, S., Saberi, M., 2020, StochasticAnisoPedCTM: Implementation of macroscopic pedestrian loading model with route choice.
+https://github.com/shubhankar1995/StochasticAnisoPedCTM
+
+Please see LICENSE.md for details on usage and the original LICENSE.md in https://github.com/flurinus/anisopedctm.
+
 
 ## About
 This repository has two components to it.
